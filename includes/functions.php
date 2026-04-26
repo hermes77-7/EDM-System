@@ -1,14 +1,33 @@
 <?php
 
+function isLoggedIn() {
+    return isset($_SESSION['user']);
+}
+
+function getUser() {
+    return $_SESSION['user'] ?? null;
+}
+
+function getUserRole() {
+    return $_SESSION['user']['role'] ?? null;
+}
+
 function isAdmin() {
-    return $_SESSION['user']['role'] === 'admin';
+    return getUserRole() === 'admin';
 }
 
 function isTeacher() {
-    return $_SESSION['user']['role'] === 'teacher';
+    return getUserRole() === 'teacher';
 }
 
 function isViewer() {
-    return $_SESSION['user']['role'] === 'viewer';
+    return getUserRole() === 'viewer';
 }
-?>
+
+function canUpload() {
+    return isAdmin() || isTeacher();
+}
+
+function canManageUsers() {
+    return isAdmin();
+}

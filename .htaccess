@@ -1,0 +1,15 @@
+RewriteEngine On
+
+# Remove .php from URLs
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)$ $1.php [L]
+
+# Custom routes
+RewriteRule ^dashboard$ index.php [L]
+RewriteRule ^documents$ documents/index.php [L]
+RewriteRule ^upload$ documents/upload.php [L]
+RewriteRule ^admin$ users/index.php [L]
+RewriteRule ^login$ auth/login.php [L]
+RewriteRule ^register$ auth/register.php [L]
+RewriteRule ^logout$ auth/logout.php [L]

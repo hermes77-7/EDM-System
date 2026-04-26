@@ -1,9 +1,10 @@
 <?php
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$user = $_SESSION['user'] ?? null;
+$loggeduser = $_SESSION['user'] ?? null;
 $pageTitle = $pageTitle ?? 'EDM System';
 
 function canUploadDocs() {
@@ -24,8 +25,7 @@ function isAdminUser() {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://kit.fontawesome.com/6b6b4f7b2b.js" crossorigin="anonymous"></script>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         :root {
             --primary-green: #0b3d2e; /* Dark Forest Green */
@@ -213,6 +213,34 @@ function isAdminUser() {
         .user-meta strong { font-size: 14px; display: block; }
         .user-meta span { font-size: 12px; opacity: 0.8; }
 
+        .action-btn {
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--accent-green);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.secondary {
+            background: #111;
+        }
+
+        .action-btn.secondary:hover {
+            background: #000;
+        }
+
     </style>
 </head>
 <body>
@@ -230,8 +258,8 @@ function isAdminUser() {
 
     <div style="display:flex; align-items:center;">
         <div class="user-meta">
-            <strong><?php echo htmlspecialchars($user['name'] ?? 'Guest'); ?></strong>
-            <span><?php echo htmlspecialchars($user['email'] ?? 'Not logged in'); ?></span>
+            <strong><?php echo htmlspecialchars($loggeduser['name'] ?? 'Guest'); ?></strong>
+            <span><?php echo htmlspecialchars($loggeduser['email'] ?? 'Not logged in'); ?></span>
         </div>
         <a class="logout-btn" href="/edm-system/auth/logout.php">
             <i class="fa-solid fa-power-off"></i>
@@ -244,16 +272,14 @@ function isAdminUser() {
     <aside class="sidebar">
         <div class="sidebar-section">
             <h3>MAIN MENU</h3>
-            <a class="nav-link" href="../index.php">
-                <i class="fa-solid fa-chart-pie"></i>
+            <a class="nav-link" href="/edm-system/index.php">
                 <div>
                     <span>Dashboard</span>
                     <small>View recent activity</small>
                 </div>
             </a>
 
-            <a class="nav-link" href="../documents/index.php">
-                <i class="fa-solid fa-files"></i>
+            <a class="nav-link" href="/edm-system/documents/index.php">
                 <div>
                     <span>Documents</span>
                     <small>Browse all files</small>
@@ -261,8 +287,7 @@ function isAdminUser() {
             </a>
 
             <?php if (canUploadDocs()): ?>
-            <a class="nav-link" href="../documents/upload.php">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
+            <a class="nav-link" href="/edm-system/documents/upload.php">
                 <div>
                     <span>Upload</span>
                     <small>Upload Documents</small>
@@ -271,8 +296,7 @@ function isAdminUser() {
             <?php endif; ?>
 
             <?php if (isAdminUser()): ?>
-            <a class="nav-link" href="../users/index.php">
-                <i class="fa-solid fa-user-shield"></i>
+            <a class="nav-link" href="/edm-system/users/index.php">
                 <div>
                     <span>Admin Panel</span>
                     <small>User Control</small>

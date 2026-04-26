@@ -14,22 +14,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST["email"];
     $password = $_POST["password"];
 
-    $sql = "SELECT * FROM users WHERE email = '$email' AND is_active = 1";
-    $result = $conn->query($sql);
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$result = $stmt->get_result();
 
-    if ($result->num_rows == 1) {
-        $user = $result->fetch_assoc();
+if ($result->num_rows == 1) {
+    $user = $result->fetch_assoc();
 
-        if (password_verify($password, $user["password"])) {
-            $_SESSION["user"] = $user;
-            header("Location: ../index.php");
-            exit();
-        } else {
-            $error = "Invalid password";
-        }
-    } else {
-        $error = "User not found or disabled";
+    if ((int)$user["is_active"] !== 1) {
+        $error = "Your account has been disabled.";
     }
+    elseif (password_verify($password, $user["password"])) {
+        $_SESSION["user"] = $user;
+        header("Location: ../index.php");
+        exit();
+    } else {
+        $error = "Invalid password";
+    }
+} else {
+    $error = "User not found";
+}
 }
 ?>
 <!DOCTYPE html>
