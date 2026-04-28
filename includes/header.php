@@ -28,9 +28,9 @@ function isAdminUser() {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         :root {
-            --primary-green: #0b3d2e; /* Dark Forest Green */
-            --sidebar-black: #111111; /* Black */
-            --bg-grey: #f5f7f6;       /* Grey Background */
+            --primary-green: #0b3d2e; 
+            --sidebar-black: #111111; 
+            --bg-grey: #f5f7f6; 
             --white: #ffffff;
             --text-main: #1f2937;
             --text-muted: #6b7280;
@@ -229,7 +229,6 @@ function isAdminUser() {
         }
 
         .action-btn:hover {
-            background: var(--accent-green);
             transform: translateY(-1px);
         }
 
