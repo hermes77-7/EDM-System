@@ -11,27 +11,22 @@ if (!isAdmin()) {
 $pageTitle = "Admin Panel | EDM System";
 
 function bind_stmt_params(mysqli_stmt $stmt, string $types, array $params): void {
-    if ($types === '') {
-        return;
-    }
-
+    if ($types === '') return;
     $refs = [];
     foreach ($params as $key => $value) {
         $refs[$key] = &$params[$key];
     }
-
     array_unshift($refs, $types);
     call_user_func_array([$stmt, 'bind_param'], $refs);
 }
 
-/* Overall stats */
-$totalUsers = 0;
+$totalUsers  = 0;
 $activeUsers = 0;
-$teachers = 0;
-$viewers = 0;
+$teachers    = 0;
+$viewers     = 0;
 
-$totalRes = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role <> 'admin'");
-if ($totalRes) $totalUsers = (int)$totalRes->fetch_assoc()['total'];
+$totalRes  = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role <> 'admin'");
+if ($totalRes)  $totalUsers  = (int)$totalRes->fetch_assoc()['total'];
 
 $activeRes = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role <> 'admin' AND is_active = 1");
 if ($activeRes) $activeUsers = (int)$activeRes->fetch_assoc()['total'];
@@ -39,30 +34,29 @@ if ($activeRes) $activeUsers = (int)$activeRes->fetch_assoc()['total'];
 $teacherRes = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role = 'teacher'");
 if ($teacherRes) $teachers = (int)$teacherRes->fetch_assoc()['total'];
 
-$viewerRes = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role = 'viewer'");
-if ($viewerRes) $viewers = (int)$viewerRes->fetch_assoc()['total'];
+$viewerRes  = $conn->query("SELECT COUNT(*) AS total FROM users WHERE role = 'viewer'");
+if ($viewerRes)  $viewers  = (int)$viewerRes->fetch_assoc()['total'];
 
-/* Filters */
-$search = trim($_GET['search'] ?? '');
-$roleFilter = $_GET['role'] ?? 'all';
+$search       = trim($_GET['search'] ?? '');
+$roleFilter   = $_GET['role']   ?? 'all';
 $statusFilter = $_GET['status'] ?? 'all';
 
-$where = ["role <> 'admin'"];
+$where  = ["role <> 'admin'"];
 $params = [];
-$types = '';
+$types  = '';
 
 if ($search !== '') {
-    $where[] = "(name LIKE ? OR email LIKE ?)";
-    $like = '%' . $search . '%';
+    $where[]  = "(name LIKE ? OR email LIKE ?)";
+    $like     = '%' . $search . '%';
     $params[] = $like;
     $params[] = $like;
-    $types .= 'ss';
+    $types   .= 'ss';
 }
 
 if (in_array($roleFilter, ['viewer', 'teacher'], true)) {
-    $where[] = "role = ?";
+    $where[]  = "role = ?";
     $params[] = $roleFilter;
-    $types .= 's';
+    $types   .= 's';
 }
 
 if ($statusFilter === 'enabled') {
@@ -71,12 +65,9 @@ if ($statusFilter === 'enabled') {
     $where[] = "is_active = 0";
 }
 
-$sql = "SELECT id, name, email, role, is_active FROM users WHERE " . implode(' AND ', $where) . " ORDER BY id DESC";
+$sql  = "SELECT id, name, email, role, is_active FROM users WHERE " . implode(' AND ', $where) . " ORDER BY id DESC";
 $stmt = $conn->prepare($sql);
-
-if (!$stmt) {
-    die("Database error.");
-}
+if (!$stmt) die("Database error.");
 
 bind_stmt_params($stmt, $types, $params);
 $stmt->execute();
@@ -164,9 +155,7 @@ include("../includes/header.php");
         letter-spacing: .08em;
     }
 
-    .toolbar-left small {
-        color: #6b7280;
-    }
+    .toolbar-left small { color: #6b7280; }
 
     .create-trigger {
         background: #111;
@@ -190,9 +179,8 @@ include("../includes/header.php");
 
     .filter-bar {
         background: white;
-        border: 1px solid var(--border);
-        border-radius: 2px ;
-        border-color: black ;
+        border: 1px solid black;
+        border-radius: 2px;
         padding: 16px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         display: grid;
@@ -210,6 +198,7 @@ include("../includes/header.php");
         outline: none;
         background: #fff;
         color: var(--text-main);
+        font-size: 14px;
     }
 
     .filter-field input:focus,
@@ -235,18 +224,14 @@ include("../includes/header.php");
         gap: 8px;
         text-decoration: none;
         height: 46px;
+        white-space: nowrap;
+        font-size: 14px;
     }
 
-    .filter-btn.primary {
-        background: var(--primary-green);
-        color: white;
-    }
+    .filter-btn.primary  { background: var(--primary-green); color: white; }
+    .filter-btn.secondary { background: #f3f4f6; color: #111; }
 
-    .filter-btn.secondary {
-        background: #f3f4f6;
-        color: #111;
-    }
-
+    /* User list */
     .user-stream {
         display: flex;
         flex-direction: column;
@@ -271,16 +256,8 @@ include("../includes/header.php");
         transform: translateY(-1px);
     }
 
-    .u-name {
-        font-weight: 700;
-        color: #111;
-        font-size: 16px;
-    }
-
-    .u-email {
-        color: #6b7280;
-        font-size: 14px;
-    }
+    .u-name  { font-weight: 700; color: #111; font-size: 16px; }
+    .u-email { color: #6b7280; font-size: 14px; word-break: break-all; }
 
     .u-role-tag {
         font-size: 11px;
@@ -306,16 +283,11 @@ include("../includes/header.php");
         width: 8px;
         height: 8px;
         border-radius: 50%;
+        flex-shrink: 0;
     }
 
-    .status-indicator.on {
-        background: #10b981;
-        box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-    }
-
-    .status-indicator.off {
-        background: #ef4444;
-    }
+    .status-indicator.on  { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+    .status-indicator.off { background: #ef4444; }
 
     .btn-group {
         display: flex;
@@ -338,40 +310,20 @@ include("../includes/header.php");
         font-size: 15px;
     }
 
-    .btn-edit {
-        background: #f5f7f6;
-        color: #111;
-    }
+    .btn-edit   { background: #f5f7f6; color: #111; }
+    .btn-edit:hover   { background: #111; color: white; }
 
-    .btn-edit:hover {
-        background: #111;
-        color: white;
-    }
+    .btn-toggle { background: #f5f7f6; color: var(--primary-green); }
+    .btn-toggle:hover { background: var(--primary-green); color: white; }
 
-    .btn-toggle {
-        background: #f5f7f6;
-        color: var(--primary-green);
-    }
+    .btn-delete { background: #fff1f2; color: #e11d48; }
+    .btn-delete:hover { background: #e11d48; color: white; }
 
-    .btn-toggle:hover {
-        background: var(--primary-green);
-        color: white;
-    }
-
-    .btn-delete {
-        background: #fff1f2;
-        color: #e11d48;
-    }
-
-    .btn-delete:hover {
-        background: #e11d48;
-        color: white;
-    }
-
+    /* ── TABLET ── */
     @media (max-width: 1100px) {
         .stream-item {
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            gap: 14px;
         }
 
         .btn-group {
@@ -383,9 +335,84 @@ include("../includes/header.php");
         }
     }
 
+    /* ── MOBILE ── */
     @media (max-width: 700px) {
         .filter-bar {
             grid-template-columns: 1fr;
+        }
+
+        .filter-actions {
+            flex-direction: row;
+        }
+
+        .filter-btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        .filter-field input,
+        .filter-field select {
+            font-size: 16px; /* prevent iOS zoom */
+        }
+    }
+
+    @media (max-width: 640px) {
+        .admin-hero {
+            padding: 24px 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 18px;
+        }
+
+        .hero-text h2 {
+            font-size: 24px;
+        }
+
+        .hud-display {
+            width: 100%;
+            border-radius: 16px;
+            justify-content: space-around;
+            padding: 14px 16px;
+        }
+
+        .hud-item {
+            min-width: 60px;
+        }
+
+        .hud-val {
+            font-size: 20px;
+        }
+
+        /* Each user card becomes a single-column block */
+        .stream-item {
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 16px;
+        }
+
+        .u-name  { font-size: 15px; }
+        .u-email { font-size: 13px; }
+
+        .btn-group {
+            justify-content: flex-start;
+            gap: 10px;
+        }
+
+        /* Slightly larger tap targets */
+        .btn-action {
+            width: 44px;
+            height: 44px;
+            font-size: 16px;
+        }
+
+        .stream-toolbar {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .create-trigger {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>
@@ -435,16 +462,16 @@ include("../includes/header.php");
 
         <div class="filter-field">
             <select name="role">
-                <option value="all" <?php echo $roleFilter === 'all' ? 'selected' : ''; ?>>All Roles</option>
-                <option value="viewer" <?php echo $roleFilter === 'viewer' ? 'selected' : ''; ?>>Viewer</option>
+                <option value="all"     <?php echo $roleFilter === 'all'     ? 'selected' : ''; ?>>All Roles</option>
+                <option value="viewer"  <?php echo $roleFilter === 'viewer'  ? 'selected' : ''; ?>>Viewer</option>
                 <option value="teacher" <?php echo $roleFilter === 'teacher' ? 'selected' : ''; ?>>Teacher</option>
             </select>
         </div>
 
         <div class="filter-field">
             <select name="status">
-                <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Status</option>
-                <option value="enabled" <?php echo $statusFilter === 'enabled' ? 'selected' : ''; ?>>Enabled</option>
+                <option value="all"      <?php echo $statusFilter === 'all'      ? 'selected' : ''; ?>>All Status</option>
+                <option value="enabled"  <?php echo $statusFilter === 'enabled'  ? 'selected' : ''; ?>>Enabled</option>
                 <option value="disabled" <?php echo $statusFilter === 'disabled' ? 'selected' : ''; ?>>Disabled</option>
             </select>
         </div>

@@ -38,9 +38,6 @@ function buildFolderOptionsRecursive(array $foldersByParent, $parentId = null, $
     return $html;
 }
 
-/**
- * Load folders for the dropdown
- */
 $foldersResult = $conn->query("SELECT id, name, parent_id FROM folders ORDER BY name ASC, id ASC");
 $foldersByParent = [];
 
@@ -52,25 +49,24 @@ if ($foldersResult) {
     }
 }
 
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $title = trim($_POST["title"] ?? "");
-    $folderId = $_POST["folder_id"] ?? "";
-    $description = trim($_POST["description"] ?? "");
-    $keywords = trim($_POST["keywords"] ?? "");
+    $title        = trim($_POST["title"] ?? "");
+    $folderId     = $_POST["folder_id"] ?? "";
+    $description  = trim($_POST["description"] ?? "");
+    $keywords     = trim($_POST["keywords"] ?? "");
     $documentType = trim($_POST["document_type"] ?? "");
-    $uploadedBy = (int)$_SESSION['user']['id'];
+    $uploadedBy   = (int)$_SESSION['user']['id'];
 
     if ($title === "") {
         $error = "Document title is required.";
     } elseif (!isset($_FILES["file"]) || $_FILES["file"]["error"] !== UPLOAD_ERR_OK) {
         $error = "Please choose a valid file.";
     } else {
-        $allowedExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'ppt', 'pptx'];
+        $allowedExtensions = ['pdf','doc','docx','xls','xlsx','txt','png','jpg','jpeg','gif','ppt','pptx'];
         $originalName = $_FILES["file"]["name"];
-        $tmpName = $_FILES["file"]["tmp_name"];
-        $fileSize = (int)$_FILES["file"]["size"];
-        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $tmpName      = $_FILES["file"]["tmp_name"];
+        $fileSize     = (int)$_FILES["file"]["size"];
+        $extension    = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
         if (!in_array($extension, $allowedExtensions, true)) {
             $error = "File type not allowed.";
@@ -81,8 +77,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 mkdir($uploadDir, 0777, true);
             }
 
-            $safeName = uniqid("doc_", true) . "." . $extension;
-            $destination = $uploadDir . "/" . $safeName;
+            $safeName     = uniqid("doc_", true) . "." . $extension;
+            $destination  = $uploadDir . "/" . $safeName;
             $relativePath = "uploads/" . $safeName;
 
             if (!move_uploaded_file($tmpName, $destination)) {
@@ -97,18 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
                     ");
                     $mimeType = $_FILES["file"]["type"] ?? '';
-                    $stmt->bind_param(
-                        "ssississs",
-                        $title,
-                        $relativePath,
-                        $uploadedBy,
-                        $originalName,
-                        $mimeType,
-                        $fileSize,
-                        $description,
-                        $keywords,
-                        $documentType
-                    );
+                    $stmt->bind_param("ssississs", $title, $relativePath, $uploadedBy, $originalName, $mimeType, $fileSize, $description, $keywords, $documentType);
                 } else {
                     $stmt = $conn->prepare("
                         INSERT INTO documents
@@ -116,19 +101,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ");
                     $mimeType = $_FILES["file"]["type"] ?? '';
-                    $stmt->bind_param(
-                        "ssiississs",
-                        $title,
-                        $relativePath,
-                        $uploadedBy,
-                        $folderIdValue,
-                        $originalName,
-                        $mimeType,
-                        $fileSize,
-                        $description,
-                        $keywords,
-                        $documentType
-                    );
+                    $stmt->bind_param("ssiississs", $title, $relativePath, $uploadedBy, $folderIdValue, $originalName, $mimeType, $fileSize, $description, $keywords, $documentType);
                 }
 
                 if ($stmt->execute()) {
@@ -147,7 +120,6 @@ include("../includes/header.php");
 
 <style>
 .upload-panel {
-   
     padding: 28px;
 }
 
@@ -246,17 +218,43 @@ include("../includes/header.php");
     margin-top: 6px;
 }
 
-.action-btn.secondary {
-    background: #111;
-}
+.action-btn.secondary { background: #111; }
+.action-btn.secondary:hover { background: #000; }
 
-.action-btn.secondary:hover {
-    background: #000;
-}
-
+/* ── MOBILE ── */
 @media (max-width: 760px) {
     .form-row {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .upload-panel {
+        padding: 16px 0;
+    }
+
+    .upload-head h2 {
+        font-size: 1.5rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px; /* prevent iOS zoom */
+        padding: 12px 14px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .file-box {
+        padding: 14px;
     }
 }
 </style>
@@ -264,7 +262,7 @@ include("../includes/header.php");
 <div class="page-card">
     <div class="upload-head">
         <h2>Upload Document</h2>
-        <p>Save a file into a folder </p>
+        <p>Save a file into a folder</p>
     </div>
 
     <?php if ($error): ?>
@@ -326,7 +324,6 @@ include("../includes/header.php");
                     <i class="fa-solid fa-upload"></i>
                     Upload Document
                 </button>
-
                 <a href="/edm-system/documents/index.php" class="action-btn secondary">
                     Cancel
                 </a>

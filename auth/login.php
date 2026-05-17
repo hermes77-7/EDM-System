@@ -15,26 +15,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST["password"];
 
     $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-if ($result->num_rows == 1) {
-    $user = $result->fetch_assoc();
+    if ($result->num_rows == 1) {
+        $user = $result->fetch_assoc();
 
-    if ((int)$user["is_active"] !== 1) {
-        $error = "Your account has been disabled.";
-    }
-    elseif (password_verify($password, $user["password"])) {
-        $_SESSION["user"] = $user;
-        header("Location: ../index.php");
-        exit();
+        if ((int)$user["is_active"] !== 1) {
+            $error = "Your account has been disabled.";
+        } elseif (password_verify($password, $user["password"])) {
+            $_SESSION["user"] = $user;
+            header("Location: ../dashboard/index.php");
+            exit();
+        } else {
+            $error = "Invalid password";
+        }
     } else {
-        $error = "Invalid password";
+        $error = "User not found";
     }
-} else {
-    $error = "User not found";
-}
 }
 ?>
 <!DOCTYPE html>
@@ -63,8 +62,7 @@ if ($result->num_rows == 1) {
         body {
             display: flex;
             height: 100vh;
-            /* Using a high-quality placeholder if your local image is missing */
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
                         url('../assets/images/Login-Background.jpg');
             background-size: cover;
             background-position: center;
@@ -140,7 +138,6 @@ if ($result->num_rows == 1) {
             margin-bottom: 30px;
         }
 
-        /* ERROR MESSAGE */
         .error {
             background: #fef2f2;
             color: #dc2626;
@@ -209,17 +206,68 @@ if ($result->num_rows == 1) {
         }
 
         .link {
-    text-align: center;
-    margin-top: 15px;
-    font-size: 14px;
-}
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+        }
 
-.link a {
-    color: var(--primary-green);
-    text-decoration: none;
-    font-weight: 600;
-}
+        .link a {
+            color: var(--primary-green);
+            text-decoration: none;
+            font-weight: 600;
+        }
 
+        /* ── MOBILE ── */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                overflow: auto;
+                height: auto;
+                min-height: 100vh;
+                padding: 30px 16px;
+                background-attachment: scroll;
+            }
+
+            .left {
+                display: none; /* hide branding panel on mobile */
+            }
+
+            .right {
+                flex: none;
+                width: 100%;
+                padding: 0;
+                background: transparent;
+                backdrop-filter: none;
+            }
+
+            .login-box {
+                padding: 36px 24px;
+                border-radius: 20px;
+                max-width: 100%;
+            }
+
+            .login-box h2 {
+                font-size: 26px;
+            }
+
+            .input-group input {
+                padding: 13px 16px;
+                font-size: 16px; /* prevent iOS zoom */
+            }
+
+            button[type="submit"] {
+                padding: 15px;
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .login-box {
+                padding: 28px 18px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -227,7 +275,7 @@ if ($result->num_rows == 1) {
 <div class="left">
     <div class="left-content">
         <h1>EDM System</h1>
-        <p>Electrinic Document Management System.</p>
+        <p>Electronic Document Management System.</p>
     </div>
 </div>
 
@@ -250,13 +298,11 @@ if ($result->num_rows == 1) {
             </div>
 
             <button type="submit">Sign In</button>
-
         </form>
 
         <div class="link">
-             Don’t have an account? <a href="register.php">Sign up</a>
-            </div>
-
+            Don't have an account? <a href="register.php">Sign up</a>
+        </div>
     </div>
 </div>
 

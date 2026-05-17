@@ -1,141 +1,233 @@
 <?php
-include("config/db.php");
-include("includes/functions.php");
-include("includes/header.php");
+session_start();
 
-/**
- * Load the 10 most recent visible documents
- */
-$latestDocs = [];
-
-$result = $conn->query("
-    SELECT d.id, d.title, d.file_path, d.created_at,
-           d.visibility, d.uploaded_by,
-           u.name AS uploaded_by_name
-    FROM documents d
-    LEFT JOIN users u ON u.id = d.uploaded_by
-    ORDER BY d.created_at DESC
-    LIMIT 10
-");
-
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        if (function_exists('canViewDocument') && !canViewDocument($row)) {
-            continue;
-        }
-        $latestDocs[] = $row;
-    }
+if (isset($_SESSION['user'])) {
+    header("Location: /edm-system/dashboard/index.php");
+    exit();
 }
+
+$pageTitle = "EDM System | Electronic Document Management";
+
+include("includes/landing_header.php");
 ?>
 
-<style>
-.dashboard-card {
-    border-radius: 8px;
-    padding: 20px;
-    margin-top: 20px;
-}
+<!-- NAVBAR -->
 
-.dashboard-card h3 {
-    margin-bottom: 15px;
-    font-size: 18px;
-    font-weight: 800;
-}
+<header class="navbar">
 
-.latest-docs {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
+    <div class="logo">
 
-.doc-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid transparent;
-    transition: 0.2s;
-}
-
-.doc-item:hover {
-    background: #f8faf9;
-    border-color: #eaeeec;
-}
-
-.doc-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.doc-title {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.doc-meta {
-    font-size: 11px;
-    color: #888;
-}
-
-.doc-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.doc-actions a {
-    text-decoration: none;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 10px;
-    border-radius: 6px;
-    background: #111;
-    color: #fff;
-}
-
-.doc-actions a:hover {
-    background: #0b3d2e;
-}
-</style>
-
-<div class="card">
-    <h2 class="page-title">Dashboard</h2>
-    <p class="page-subtitle">
-        Welcome back, <strong><?php echo htmlspecialchars($_SESSION['user']['name']); ?></strong>. 
-        Select an option from the sidebar.
-    </p>
-</div>
-
-<div class="dashboard-card">
-    <h3>Latest Documents</h3>
-
-    <?php if (!empty($latestDocs)): ?>
-        <div class="latest-docs">
-            <?php foreach ($latestDocs as $doc): ?>
-                <div class="doc-item">
-                    <div class="doc-info">
-                        <div class="doc-title">
-                            <?php echo htmlspecialchars($doc['title']); ?>
-                        </div>
-                        <div class="doc-meta">
-                            <?php echo htmlspecialchars($doc['uploaded_by_name'] ?? 'System'); ?>
-                            · <?php echo htmlspecialchars($doc['created_at']); ?>
-                        </div>
-                    </div>
-
-                    <div class="doc-actions">
-                        <a href="/edm-system/documents/view.php?id=<?php echo $doc['id']; ?>">
-                            View
-                        </a>
-                        <a href="/edm-system/<?php echo htmlspecialchars($doc['file_path']); ?>" download>
-                            Download
-                        </a>
-                    </div>
-                </div>
-            <?php endforeach; ?>
+        <div class="logo-box">
+            <i class="fa-solid fa-folder-open"></i>
         </div>
-    <?php else: ?>
-        <p>No documents available.</p>
-    <?php endif; ?>
-</div>
 
-<?php include("includes/footer.php"); ?>
+        <div class="logo-text">
+            <h1>EDM System</h1>
+        </div>
+
+    </div>
+
+    <nav class="nav-links">
+        <a href="#">Home</a>
+        <a href="#features">Features</a>
+        <a href="#">Security</a>
+    </nav>
+
+    <div class="nav-actions">
+
+        <a href="/edm-system/auth/login.php" class="btn btn-outline">
+            <i class="fa-solid fa-right-to-bracket"></i>
+            Login
+        </a>
+
+        <a href="/edm-system/auth/register.php" class="btn btn-primary">
+            <i class="fa-solid fa-user-plus"></i>
+            Get Started
+        </a>
+
+    </div>
+
+</header>
+
+<!-- HERO -->
+
+<section class="hero">
+
+    <div class="hero-left">
+
+        <div class="hero-badge">
+            <i class="fa-solid fa-shield-halved"></i>
+            Secure • Reliable • Efficient
+        </div>
+
+        <h1 class="hero-title">
+            Smart Document <br>
+            Management <span>System</span>
+        </h1>
+
+        <p class="hero-text">
+            Organize, store and manage your documents securely in one place.
+            Access information quickly, collaborate efficiently and ensure
+            data integrity with a modern EDM platform.
+        </p>
+
+        <div class="hero-actions">
+
+            <a href="/edm-system/auth/register.php"
+               class="hero-btn hero-btn-primary">
+
+                <i class="fa-solid fa-rocket"></i>
+                Get Started
+
+            </a>
+
+            <a href="/edm-system/auth/login.php"
+               class="hero-btn hero-btn-secondary">
+
+                <i class="fa-solid fa-user"></i>
+                Login
+
+            </a>
+
+        </div>
+
+        <div class="hero-features">
+
+            <div class="hero-feature">
+                <i class="fa-solid fa-lock"></i>
+                Secure Access
+            </div>
+
+            <div class="hero-feature">
+                <i class="fa-solid fa-cloud"></i>
+                Cloud Storage
+            </div>
+
+            <div class="hero-feature">
+                <i class="fa-solid fa-users"></i>
+                Role Based Access
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- RIGHT -->
+
+    <div class="hero-right">
+
+        
+    </div>
+
+</section>
+
+<!-- FEATURES -->
+
+<section class="features" id="features">
+
+    <div class="section-title">
+
+        <span>POWERFUL FEATURES</span>
+
+        <h2>Everything you need to manage documents</h2>
+
+        <p>
+            A complete solution for modern document storage,
+            organization, search and collaboration.
+        </p>
+
+    </div>
+
+    <div class="feature-grid">
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+
+            <h3>Easy Search</h3>
+
+            <p>
+                Find documents instantly using advanced search filters.
+            </p>
+
+        </div>
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                <i class="fa-solid fa-folder"></i>
+            </div>
+
+            <h3>Folder Structure</h3>
+
+            <p>
+                Organize all files inside structured folders and categories.
+            </p>
+
+        </div>
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                <i class="fa-solid fa-upload"></i>
+            </div>
+
+            <h3>Secure Upload</h3>
+
+            <p>
+                Upload and store multiple document formats safely.
+            </p>
+
+        </div>
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                <i class="fa-solid fa-users"></i>
+            </div>
+
+            <h3>User Roles</h3>
+
+            <p>
+                Control permissions with role-based access management.
+            </p>
+
+        </div>
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <h3>Data Protection</h3>
+
+            <p>
+                Enterprise-grade security for all your sensitive documents.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- FOOTER -->
+
+<footer class="footer">
+
+    <div>
+        ©️ <?php echo date('Y'); ?> EDM System — All rights reserved.
+    </div>
+
+    <div class="footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms</a>
+        <a href="#">Support</a>
+    </div>
+
+</footer>
+
+<?php include("includes/landing_footer.php"); ?>

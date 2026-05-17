@@ -1,17 +1,16 @@
 <?php
+// 1. Core includes (No HTML output)
 include("../includes/auth.php");
 include("../includes/functions.php");
 include("../config/db.php");
-include("../includes/header.php");
 
-
+// 2. Authentication check (Must happen before header.php)
 if (!isset($_SESSION['user'])) {
     header("Location: /edm-system/auth/login.php");
     exit();
 }
 
 $id = (int)($_GET['id'] ?? 0);
-
 $res = $conn->query("SELECT * FROM documents WHERE id = $id");
 
 if (!$res || $res->num_rows === 0) {
@@ -56,7 +55,7 @@ function buildFolderOptions($foldersByParent, $parentId = null, $level = 0, $sel
     return $html;
 }
 
-/* HANDLE UPDATE */
+/* HANDLE UPDATE (Processes safely before any HTML is sent) */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $title = trim($_POST['title']);
@@ -92,7 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// 3. Set page variables and finally include the visual header
 $pageTitle = "Edit Document | EDM System";
+include("../includes/header.php"); 
 ?>
 
 <style>
@@ -101,9 +102,7 @@ $pageTitle = "Edit Document | EDM System";
 }
 
 .edit-card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 20px;
+
     padding: 30px;
 }
 

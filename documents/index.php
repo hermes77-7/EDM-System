@@ -8,19 +8,12 @@ if (!isset($_SESSION['user'])) {
     exit();
 }
 
-/**
- * Checks if the current user has folder management privileges (admin or teacher).
- */
 if (!function_exists('canManageFolders')) {
     function canManageFolders() {
         return isAdmin() || isTeacher();
     }
 }
 
-/**
- * Checks if the current user is allowed to view a given document
- * based on its visibility setting.
- */
 if (!function_exists('canViewDocument')) {
     function canViewDocument(array $doc): bool {
         if (function_exists('canViewVisibility') && array_key_exists('visibility', $doc)) {
@@ -30,38 +23,22 @@ if (!function_exists('canViewDocument')) {
     }
 }
 
-/**
- * Checks if the current user can edit a given document.
- * Admins can edit any document; other users can only edit their own uploads.
- */
 if (!function_exists('canEditDocument')) {
     function canEditDocument(array $doc): bool {
-        if (!isset($_SESSION['user'])) {
-            return false;
-        }
-
+        if (!isset($_SESSION['user'])) return false;
         $role       = $_SESSION['user']['role'] ?? '';
         $userId     = (int)($_SESSION['user']['id'] ?? 0);
         $uploadedBy = (int)($doc['uploaded_by'] ?? 0);
-
         return $role === 'admin' || $uploadedBy === $userId;
     }
 }
 
-/**
- * Checks if the current user can delete a given document.
- * Delegates to canEditDocument — same permission rules apply.
- */
 if (!function_exists('canDeleteDocument')) {
     function canDeleteDocument(array $doc): bool {
         return canEditDocument($doc);
     }
 }
 
-/**
- * Binds an array of parameters to a prepared MySQLi statement.
- * Needed because mysqli_stmt::bind_param() requires parameters by reference.
- */
 if (!function_exists('edm_bind_params')) {
     function edm_bind_params(mysqli_stmt $stmt, string $types, array &$params): void {
         $refs   = [];
@@ -73,35 +50,39 @@ if (!function_exists('edm_bind_params')) {
     }
 }
 
-// ── Search state 
-
-$searchMode     = ($_GET['mode'] ?? 'normal') === 'deep' ? 'deep' : 'normal';
+if (!function_exists('buildFolderOptionsRecursive')) {
+    function buildFolderOptionsRecursive(array $foldersByParent, $parentId = null, int $level = 0, $selectedId = null): string
+    {
+        $html = '';
+        if (!empty($foldersByParent[$parentId])) {
+            foreach ($foldersByParent[$parentId] as $folder) {
+                $folderId = (int)$folder['id'];
+                $selected = ((string)$selectedId !== '' && (int)$selectedId === $folderId) ? ' selected' : '';
+                $indent   = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
+                $html    .= '<option value="' . $folderId . '"' . $selected . '>'
+                    . $indent . htmlspecialchars($folder['name']) . '</option>';
+                $html .= buildFolderOptionsRecursive($foldersByParent, $folderId, $level + 1, $selectedId);
+            }
+        }
+        return $html;
+    }
+}
 
 $normalName     = trim($_GET['name'] ?? '');
 $normalFolderId = ($_GET['folder_id'] ?? '') !== '' ? (int)$_GET['folder_id'] : '';
 $normalDocType  = trim($_GET['document_type'] ?? '');
-$deepQuery      = trim($_GET['q'] ?? '');
+$searching      = $normalName !== '' || $normalFolderId !== '' || $normalDocType !== '';
+$pageTitle      = "Document Repository | EDM System";
 
-$searching = false;
-
-$pageTitle = "Document Repository | EDM System";
-
-// Load folders
-
-$foldersResult  = $conn->query("SELECT id, name, parent_id FROM folders ORDER BY name ASC, id ASC");
+$foldersResult   = $conn->query("SELECT id, name, parent_id FROM folders ORDER BY name ASC, id ASC");
 $foldersByParent = [];
-$allFolders      = [];
-
 if ($foldersResult) {
     while ($row = $foldersResult->fetch_assoc()) {
         $row['id']        = (int)$row['id'];
         $row['parent_id'] = $row['parent_id'] === null ? null : (int)$row['parent_id'];
         $foldersByParent[$row['parent_id']][] = $row;
-        $allFolders[] = $row;
     }
 }
-
-// Distinct document types for the filter dropdown 
 
 $docTypes    = [];
 $typesResult = $conn->query(
@@ -115,42 +96,24 @@ if ($typesResult) {
     }
 }
 
-// ── Build document query 
-
 $where  = [];
 $params = [];
 $types  = '';
 
-if ($searchMode === 'deep') {
-    if ($deepQuery !== '') {
-        $searching = true;
-        $like      = '%' . $deepQuery . '%';
-
-        $where[]  = "(d.title LIKE ? OR d.document_type LIKE ? OR d.keywords LIKE ? OR d.description LIKE ? OR d.original_name LIKE ? OR f.name LIKE ?)";
-        $params   = [$like, $like, $like, $like, $like, $like];
-        $types    = 'ssssss';
-    }
-} else {
-    if ($normalName !== '') {
-        $searching = true;
-        $where[]   = "d.title LIKE ?";
-        $params[]  = '%' . $normalName . '%';
-        $types    .= 's';
-    }
-
-    if ($normalFolderId !== '') {
-        $searching = true;
-        $where[]   = "d.folder_id = ?";
-        $params[]  = $normalFolderId;
-        $types    .= 'i';
-    }
-
-    if ($normalDocType !== '') {
-        $searching = true;
-        $where[]   = "d.document_type = ?";
-        $params[]  = $normalDocType;
-        $types    .= 's';
-    }
+if ($normalName !== '') {
+    $where[]  = "d.title LIKE ?";
+    $params[] = '%' . $normalName . '%';
+    $types   .= 's';
+}
+if ($normalFolderId !== '') {
+    $where[]  = "d.folder_id = ?";
+    $params[] = $normalFolderId;
+    $types   .= 'i';
+}
+if ($normalDocType !== '') {
+    $where[]  = "d.document_type = ?";
+    $params[] = $normalDocType;
+    $types   .= 's';
 }
 
 $sql = "
@@ -162,92 +125,56 @@ $sql = "
     LEFT JOIN users u ON u.id = d.uploaded_by
     LEFT JOIN folders f ON f.id = d.folder_id
 ";
-
-if (!empty($where)) {
-    $sql .= " WHERE " . implode(" AND ", $where);
-}
-
+if (!empty($where)) $sql .= " WHERE " . implode(" AND ", $where);
 $sql .= " ORDER BY d.created_at DESC";
 
 $stmt       = $conn->prepare($sql);
 $docsResult = false;
-
 if ($stmt) {
-    if (!empty($params)) {
-        edm_bind_params($stmt, $types, $params);
-    }
+    if (!empty($params)) edm_bind_params($stmt, $types, $params);
     $stmt->execute();
     $docsResult = $stmt->get_result();
 }
 
-// Group visible documents by folder 
-
 $docsByFolder     = [];
 $totalVisibleDocs = 0;
-
 if ($docsResult) {
     while ($row = $docsResult->fetch_assoc()) {
-        if (!canViewDocument($row)) {
-            continue;
-        }
-
+        if (!canViewDocument($row)) continue;
         $row['id']        = (int)$row['id'];
         $row['folder_id'] = $row['folder_id'] === null ? null : (int)$row['folder_id'];
-
         $folderKey = $row['folder_id'];
         $docsByFolder[$folderKey][] = $row;
         $totalVisibleDocs++;
     }
 }
 
-/**
- * Recursively checks whether a folder (or any of its descendants) contains
- * at least one visible document. Used to hide empty branches during search.
- */
 if (!function_exists('edm_folder_has_content')) {
     function edm_folder_has_content(array $foldersByParent, array $docsByFolder, $parentId = null): bool
     {
-        if (!empty($docsByFolder[$parentId])) {
-            return true;
-        }
-
-        if (empty($foldersByParent[$parentId])) {
-            return false;
-        }
-
+        if (!empty($docsByFolder[$parentId])) return true;
+        if (empty($foldersByParent[$parentId])) return false;
         foreach ($foldersByParent[$parentId] as $folder) {
-            $folderId = (int)$folder['id'];
-            if (edm_folder_has_content($foldersByParent, $docsByFolder, $folderId)) {
-                return true;
-            }
+            if (edm_folder_has_content($foldersByParent, $docsByFolder, (int)$folder['id'])) return true;
         }
-
         return false;
     }
 }
 
-/**
- * Recursively renders the folder tree and its documents as HTML.
- * Folders are rendered as <details> elements; documents appear inline beneath
- * their parent folder. During search, empty branches are hidden automatically.
- */
 if (!function_exists('edm_render_folder_tree')) {
     function edm_render_folder_tree(
         array $foldersByParent,
         array $docsByFolder,
-        $parentId    = null,
-        int   $level = 0,
-        bool  $searching = false
+        $parentId = null,
+        int $level = 0,
+        bool $searching = false
     ): string {
         $html = '';
 
         if (!empty($foldersByParent[$parentId])) {
             foreach ($foldersByParent[$parentId] as $folder) {
                 $folderId = (int)$folder['id'];
-
-                if ($searching && !edm_folder_has_content($foldersByParent, $docsByFolder, $folderId)) {
-                    continue;
-                }
+                if ($searching && !edm_folder_has_content($foldersByParent, $docsByFolder, $folderId)) continue;
 
                 $openAttr = $searching ? ' open' : ($level < 1 ? ' open' : '');
 
@@ -261,7 +188,6 @@ if (!function_exists('edm_render_folder_tree')) {
                 $html .= '                  <div class="node-meta">Directory // L' . $level . '</div>';
                 $html .= '              </div>';
                 $html .= '          </div>';
-
                 $html .= '          <div class="node-actions" onclick="event.stopPropagation();">';
                 if (canManageFolders()) {
                     $html .= '              <button type="button" class="action-circle" onclick="toggleSubFolderForm(' . $folderId . ')" title="New Subfolder"><i class="fa-solid fa-plus"></i></button>';
@@ -288,7 +214,6 @@ if (!function_exists('edm_render_folder_tree')) {
                 $html .= '      <div class="node-children">';
                 $html .= edm_render_folder_tree($foldersByParent, $docsByFolder, $folderId, $level + 1, $searching);
                 $html .= '      </div>';
-
                 $html .= '  </details>';
                 $html .= '</div>';
             }
@@ -306,33 +231,18 @@ if (!function_exists('edm_render_folder_tree')) {
                 $html .= '          <div class="node-meta">Folder: ' . $folderLabel . ' // ' . htmlspecialchars($doc['uploaded_by_name'] ?? 'System') . ' // ' . htmlspecialchars($doc['created_at']) . '</div>';
                 $html .= '      </div>';
                 $html .= '  </div>';
-
                 $html .= '  <div class="node-actions">';
-
-                $html .= '  <a href="/edm-system/documents/view.php?id=' . $doc['id'] . '" 
-                    class="action-circle" title="View">
-                    <i class="fa-solid fa-eye"></i>
-                    </a>';
-
-                $html .= '      <a href="/edm-system/' . htmlspecialchars($doc['file_path']) . '" class="action-circle" title="Download" download>';
-                $html .= '          <i class="fa-solid fa-download"></i>';
-                $html .= '      </a>';
-
+                $html .= '      <a href="/edm-system/documents/view.php?id=' . $doc['id'] . '" class="action-circle" title="View"><i class="fa-solid fa-eye"></i></a>';
+                $html .= '      <a href="/edm-system/' . htmlspecialchars($doc['file_path']) . '" class="action-circle" title="Download" download><i class="fa-solid fa-download"></i></a>';
                 if (canEditDocument($doc)) {
-                    $html .= '      <a href="/edm-system/documents/edit.php?id=' . $doc['id'] . '" class="action-circle" title="Edit">';
-                    $html .= '          <i class="fa-solid fa-pen-nib"></i>';
-                    $html .= '      </a>';
+                    $html .= '      <a href="/edm-system/documents/edit.php?id=' . $doc['id'] . '" class="action-circle" title="Edit"><i class="fa-solid fa-pen-nib"></i></a>';
                 }
-
                 if (canDeleteDocument($doc)) {
                     $html .= '      <form method="POST" action="/edm-system/documents/delete.php" style="display:inline;" onsubmit="return confirm(\'Delete this file?\');">';
                     $html .= '          <input type="hidden" name="id" value="' . $doc['id'] . '">';
-                    $html .= '          <button type="submit" class="action-circle del" title="Delete">';
-                    $html .= '              <i class="fa-solid fa-trash-can"></i>';
-                    $html .= '          </button>';
+                    $html .= '          <button type="submit" class="action-circle del" title="Delete"><i class="fa-solid fa-trash-can"></i></button>';
                     $html .= '      </form>';
                 }
-
                 $html .= '  </div>';
                 $html .= '</div>';
             }
@@ -382,6 +292,7 @@ include("../includes/header.php");
 
     .top-actions {
         display: flex;
+        flex-direction: column;
         justify-content: space-between;
         align-items: flex-start;
         gap: 16px;
@@ -401,13 +312,11 @@ include("../includes/header.php");
         text-transform: uppercase;
     }
 
-    .btn-init:hover {
-        background: var(--forest);
-    }
+    .btn-init:hover { background: var(--forest); }
 
     .search-panel {
         background: #fff;
-        border: 1px solid #000000;
+        border: 1px solid #000;
         border-radius: 50px;
         padding: 16px;
         display: flex;
@@ -416,11 +325,12 @@ include("../includes/header.php");
         flex-wrap: wrap;
         box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         margin-bottom: 12px;
+        width: 100%;
     }
 
     .search-field {
         flex: 1;
-        min-width: 200px;
+        min-width: 160px;
         display: flex;
         align-items: center;
         gap: 10px;
@@ -431,9 +341,7 @@ include("../includes/header.php");
         height: 50px;
     }
 
-    .search-field i {
-        color: var(--forest);
-    }
+    .search-field i { color: var(--forest); }
 
     .search-field input {
         width: 100%;
@@ -443,7 +351,6 @@ include("../includes/header.php");
         font-size: 14px;
     }
 
-    /* Styles the folder and type dropdowns to match the text inputs */
     .search-field select {
         width: 100%;
         border: none;
@@ -452,56 +359,6 @@ include("../includes/header.php");
         font-size: 14px;
         appearance: none;
         cursor: pointer;
-    }
-
-    /* Show/hide fields depending on active search mode — set server-side on load */
-    .search-field[data-mode="deep"] {
-        display: <?php echo $searchMode === 'deep' ? 'flex' : 'none'; ?>;
-    }
-
-    .search-field[data-mode="normal"] {
-        display: <?php echo $searchMode === 'normal' ? 'flex' : 'none'; ?>;
-    }
-
-    .mode-toggle,
-    .search-submit,
-    .search-clear {
-        height: 50px;
-        border-radius: 12px;
-        padding: 0 18px;
-        font-weight: 800;
-        cursor: pointer;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        border: none;
-    }
-
-    .mode-toggle {
-        background: #111;
-        color: #fff;
-    }
-
-    .mode-toggle.deep {
-        background: var(--forest);
-    }
-
-    .search-submit {
-        background: var(--forest);
-        color: #fff;
-    }
-
-    /* Clear button: subtle by default, turns red on hover */
-    .search-clear {
-        background: #fff;
-        color: #6b7280;
-        border: 1px solid var(--border);
-        /* Hidden until at least one filter is active */
-        display: none;
-    }
-
-    .search-clear:hover {
-        border-color: #e11d48;
-        color: #e11d48;
     }
 
     .search-meta {
@@ -557,6 +414,8 @@ include("../includes/header.php");
         display: flex;
         align-items: center;
         gap: 16px;
+        min-width: 0; /* allow text truncation */
+        flex: 1;
     }
 
     .folder-icon-box {
@@ -568,6 +427,7 @@ include("../includes/header.php");
         place-items: center;
         border-radius: 12px;
         font-size: 16px;
+        flex-shrink: 0;
     }
 
     .file-indicator {
@@ -575,12 +435,16 @@ include("../includes/header.php");
         height: 26px;
         background: var(--deep-black);
         border-radius: 4px;
+        flex-shrink: 0;
     }
 
     .node-title {
         font-weight: 700;
         font-size: 15px;
         color: var(--deep-black);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .node-meta {
@@ -593,8 +457,10 @@ include("../includes/header.php");
 
     .node-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
+        flex-shrink: 0;
+        margin-left: 12px;
     }
 
     .action-circle {
@@ -612,13 +478,8 @@ include("../includes/header.php");
         font-size: 14px;
     }
 
-    .action-circle:hover {
-        background: var(--forest);
-    }
-
-    .action-circle.del:hover {
-        background: #e11d48;
-    }
+    .action-circle:hover { background: var(--forest); }
+    .action-circle.del:hover { background: #e11d48; }
 
     .folder-details summary {
         list-style: none;
@@ -626,9 +487,7 @@ include("../includes/header.php");
         cursor: pointer;
     }
 
-    .folder-details summary::-webkit-details-marker {
-        display: none;
-    }
+    .folder-details summary::-webkit-details-marker { display: none; }
 
     .stream-form {
         background: var(--bg-soft);
@@ -639,6 +498,7 @@ include("../includes/header.php");
         margin: 5px 0 15px calc((var(--level) + 1) * 35px);
         max-width: 420px;
         border: 1px solid var(--border);
+        flex-wrap: wrap;
     }
 
     .stream-form input {
@@ -649,6 +509,7 @@ include("../includes/header.php");
         padding-left: 12px;
         font-size: 13px;
         height: 38px;
+        min-width: 120px;
     }
 
     .stream-form button {
@@ -668,30 +529,115 @@ include("../includes/header.php");
         text-align: center;
     }
 
-    @media (max-width: 760px) {
-        .node-row {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 12px;
+    /* ── TABLET ── */
+    @media (max-width: 900px) {
+        .tree-stream {
+            padding: 14px 8px;
         }
 
-        .node-actions {
-            width: 100%;
-            justify-content: flex-end;
+        .node-row {
+            /* reduce indentation so nested items don't overflow */
+            margin-left: calc(var(--level) * 18px);
         }
 
         .stream-form {
+            margin-left: calc((var(--level) + 1) * 18px);
+        }
+    }
+
+    /* ── MOBILE ── */
+    @media (max-width: 640px) {
+        .vault-header h2 {
+            font-size: 2rem;
+            letter-spacing: -1px;
+        }
+
+        .vault-header {
+            padding: 28px 0 18px 18px;
+        }
+
+        /* Flatten tree indentation on small screens */
+        .node-row {
+            margin-left: calc(var(--level) * 10px) !important;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px 14px;
+        }
+
+        .node-row::before {
+            display: none; /* hide connector lines on mobile */
+        }
+
+        .node-title {
+            white-space: normal;
+            font-size: 14px;
+        }
+
+        .node-meta {
+            font-size: 9px;
+        }
+
+        /* Actions wrap below content */
+        .node-actions {
+            width: 100%;
             margin-left: 0;
+            justify-content: flex-end;
             flex-wrap: wrap;
         }
 
+        /* Smaller action buttons */
+        .action-circle {
+            width: 34px;
+            height: 34px;
+            font-size: 13px;
+        }
+
+        /* Search panel stacks vertically */
         .search-panel {
+            border-radius: 20px;
+            padding: 14px;
             flex-direction: column;
             align-items: stretch;
+            gap: 10px;
         }
 
         .search-field {
             min-width: 0;
+            height: 46px;
+        }
+
+        .search-field input,
+        .search-field select {
+            font-size: 16px; /* prevent iOS zoom */
+        }
+
+        /* Search buttons full width */
+        .search-panel .action-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .search-meta {
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stream-form {
+            margin-left: 0 !important;
+            max-width: 100%;
+        }
+
+        .tree-stream {
+            padding: 8px 0;
+        }
+
+        .top-actions {
+            gap: 12px;
+        }
+
+        .btn-init {
+            width: 100%;
+            text-align: center;
         }
     }
 </style>
@@ -708,24 +654,9 @@ include("../includes/header.php");
                 <i class="fa-solid fa-folder-plus"></i> Add Root Folder
             </button>
         <?php endif; ?>
-    </div>
 
-    <form method="GET" id="searchForm" class="search-panel" style="flex:1;">
-            <input type="hidden" name="mode" id="searchMode" value="<?php echo htmlspecialchars($searchMode); ?>">
-
-            <!-- Deep search: single free-text field matching all document fields -->
-            <div class="search-field" data-mode="deep">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input
-                    type="text"
-                    name="q"
-                    value="<?php echo htmlspecialchars($deepQuery); ?>"
-                    placeholder="Type a word or phrase..."
-                >
-            </div>
-
-            <!-- Normal search: document name text filter -->
-            <div class="search-field" data-mode="normal">
+        <form method="GET" class="search-panel">
+            <div class="search-field">
                 <i class="fa-solid fa-file-lines"></i>
                 <input
                     type="text"
@@ -735,64 +666,50 @@ include("../includes/header.php");
                 >
             </div>
 
-            <!-- Normal search: folder filter dropdown -->
-            <div class="search-field" data-mode="normal">
+            <div class="search-field">
                 <i class="fa-solid fa-folder"></i>
                 <select name="folder_id">
                     <option value="">All folders</option>
-                    <?php foreach ($allFolders as $folder): ?>
-                        <option
-                            value="<?php echo (int)$folder['id']; ?>"
-                            <?php echo ($normalFolderId !== '' && (int)$normalFolderId === (int)$folder['id']) ? 'selected' : ''; ?>
-                        >
-                            <?php echo htmlspecialchars($folder['name']); ?>
-                        </option>
-                    <?php endforeach; ?>
+                    <?php echo buildFolderOptionsRecursive($foldersByParent, null, 0, $normalFolderId); ?>
                 </select>
             </div>
 
-            <!-- Normal search: document type filter dropdown -->
-            <div class="search-field" data-mode="normal">
+            <div class="search-field">
                 <i class="fa-solid fa-tags"></i>
                 <select name="document_type">
                     <option value="">All types</option>
                     <?php foreach ($docTypes as $type): ?>
-                        <option
-                            value="<?php echo htmlspecialchars($type); ?>"
-                            <?php echo ($normalDocType === $type) ? 'selected' : ''; ?>
-                        >
+                        <option value="<?php echo htmlspecialchars($type); ?>" <?php echo ($normalDocType === $type) ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($type); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
-            <!-- Toggles between normal (guided filters) and deep (free-text) search modes -->
-            <button type="button" id="modeToggleBtn" class="mode-toggle <?php echo $searchMode === 'deep' ? 'deep' : ''; ?>" onclick="toggleSearchMode()">
-                <?php echo $searchMode === 'deep' ? 'Deep Search' : 'Normal Search'; ?>
-            </button>
-
-            <!-- Resets all filter inputs and submits; only visible when a filter is active -->
-            <button type="button" id="clearBtn" class="search-clear" onclick="clearFilters()">
-                <i class="fa-solid fa-xmark"></i> Clear
-            </button>
-
-            <!-- Explicit submit — no auto-search, user triggers results manually -->
-            <button type="submit" class="search-submit">
+            <button type="submit" class="action-btn">
                 <i class="fa-solid fa-magnifying-glass"></i> Filter
             </button>
+
+            <a href="/edm-system/documents/deep_search.php" class="action-btn secondary">
+                Deep Search
+            </a>
+
+            <a href="/edm-system/documents/index.php" class="action-btn secondary">
+                Reset
+            </a>
         </form>
+    </div>
 
     <div class="search-meta">
         <span>
             <?php if ($searching): ?>
-                <?php echo (int)$totalVisibleDocs; ?> result(s) found in <?php echo strtoupper($searchMode); ?> mode.
+                <?php echo (int)$totalVisibleDocs; ?> result(s) found.
             <?php else: ?>
-                Browse all folders and documents. Toggle deep search for broader matching.
+                Browse all folders and documents. Use deep search for advanced filtering.
             <?php endif; ?>
         </span>
         <span>
-            Normal search: name, folder, type &nbsp;·&nbsp; Deep search: title, type, folder, keywords, description, filename
+            Normal search: name, folder, type &nbsp;·&nbsp; Deep search: date, uploader, title, type, description, keywords
         </span>
     </div>
 
@@ -819,102 +736,17 @@ include("../includes/header.php");
 </div>
 
 <script>
-    /**
-     * Toggles the root folder creation form open or closed.
-     */
-    function toggleRootFolderForm() {
-        const box = document.getElementById('root-folder-form');
-        if (!box) return;
-        box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
-    }
+function toggleRootFolderForm() {
+    const box = document.getElementById('root-folder-form');
+    if (!box) return;
+    box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
+}
 
-    /**
-     * Toggles the subfolder creation form for a specific folder open or closed.
-     * @param {number} folderId - The ID of the parent folder.
-     */
-    function toggleSubFolderForm(folderId) {
-        const box = document.getElementById('subfolder-form-' + folderId);
-        if (!box) return;
-        box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
-    }
-
-    /**
-     * Switches between normal (guided filters) and deep (free-text) search modes.
-     * Updates the toggle button label, shows/hides the relevant fields,
-     * and updates the Clear button visibility. Does NOT auto-submit —
-     * the user must click Filter to apply.
-     */
-    function toggleSearchMode() {
-        const modeInput = document.getElementById('searchMode');
-        const button    = document.getElementById('modeToggleBtn');
-
-        if (!modeInput || !button) return;
-
-        modeInput.value = (modeInput.value === 'normal') ? 'deep' : 'normal';
-
-        button.textContent = (modeInput.value === 'deep') ? 'Deep Search' : 'Normal Search';
-        button.classList.toggle('deep', modeInput.value === 'deep');
-
-        updateFieldVisibility(modeInput.value);
-        updateClearBtn();
-    }
-
-    /**
-     * Shows fields belonging to the active search mode and hides the others.
-     * @param {string} mode - Either 'normal' or 'deep'.
-     */
-    function updateFieldVisibility(mode) {
-        document.querySelectorAll('[data-mode="normal"]').forEach(el => {
-            el.style.display = mode === 'normal' ? 'flex' : 'none';
-        });
-        document.querySelectorAll('[data-mode="deep"]').forEach(el => {
-            el.style.display = mode === 'deep' ? 'flex' : 'none';
-        });
-    }
-
-    /**
-     * Shows the Clear button if any filter input has a non-empty value,
-     * hides it otherwise. Called on page load and whenever an input changes.
-     */
-    function updateClearBtn() {
-        const q       = document.querySelector('[name="q"]')?.value ?? '';
-        const name    = document.querySelector('[name="name"]')?.value ?? '';
-        const folder  = document.querySelector('[name="folder_id"]')?.value ?? '';
-        const docType = document.querySelector('[name="document_type"]')?.value ?? '';
-
-        const hasFilters = q || name || folder || docType;
-        const btn = document.getElementById('clearBtn');
-        if (btn) btn.style.display = hasFilters ? 'block' : 'none';
-    }
-
-    /**
-     * Clears all filter inputs back to their empty/default state
-     * and submits the form to return to the full unfiltered document tree.
-     */
-    function clearFilters() {
-        const form = document.getElementById('searchForm');
-        if (!form) return;
-
-        form.querySelector('[name="q"]').value             = '';
-        form.querySelector('[name="name"]').value          = '';
-        form.querySelector('[name="folder_id"]').value     = '';
-        form.querySelector('[name="document_type"]').value = '';
-
-        form.submit();
-    }
-
-    // On page load: sync field visibility and show Clear if filters are already active.
-    document.addEventListener('DOMContentLoaded', function () {
-        const mode = document.getElementById('searchMode')?.value || 'normal';
-        updateFieldVisibility(mode);
-        updateClearBtn();
-
-        // Wire updateClearBtn to all filter inputs so the button appears as the user types/selects.
-        document.querySelectorAll('[name="q"], [name="name"], [name="folder_id"], [name="document_type"]')
-            .forEach(el => el.addEventListener('input', updateClearBtn));
-        document.querySelectorAll('[name="folder_id"], [name="document_type"]')
-            .forEach(el => el.addEventListener('change', updateClearBtn));
-    });
+function toggleSubFolderForm(folderId) {
+    const box = document.getElementById('subfolder-form-' + folderId);
+    if (!box) return;
+    box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
+}
 </script>
 
 <?php include("../includes/footer.php"); ?>

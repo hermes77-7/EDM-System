@@ -2,8 +2,6 @@
 include("../includes/auth.php");
 include("../includes/functions.php");
 include("../config/db.php");
-include("../includes/header.php");
-
 
 if (!canManageFolders()) {
     http_response_code(403);
@@ -45,10 +43,8 @@ function isDescendant(array $folders, $possibleParentId, $folderId) {
         if ((int)$possibleParentId === (int)$folderId) {
             return true;
         }
-
         $possibleParentId = $map[(int)$possibleParentId] ?? null;
     }
-
     return false;
 }
 
@@ -85,6 +81,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 $pageTitle = "Edit Folder | EDM System";
+include("../includes/header.php");
 ?>
 
 <div class="page-card">
@@ -109,16 +106,27 @@ $pageTitle = "Edit Folder | EDM System";
             <select name="parent_id"
                     style="width:100%; padding:14px 16px; border:1px solid var(--border); border-radius:14px; background:white;">
                 <option value="">Root folder</option>
-                <?php echo buildFolderOptions($folders, null, 0, $folder['parent_id'], $id); ?>
+                <?php 
+                // Quick safety check: if the function doesn't exist, it won't crash the entire page layout
+                if (function_exists('buildFolderOptions')) {
+                    echo buildFolderOptions($folders, null, 0, $folder['parent_id'], $id);
+                } else {
+                    echo '<option value="" disabled>Error: Folder helper function missing</option>';
+                }
+                ?>
             </select>
         </div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button type="submit" class="action-btn">
+        <!-- Buttons Container with Explicit Formatting -->
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; visibility:visible !important; display:flex !important;">
+            <button type="submit" class="action-btn" 
+                    style="background-color: #0b3d2e; color: #ffffff; padding: 12px 24px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-floppy-disk"></i>
                 Save Changes
             </button>
-            <a href="/edm-system/documents/index.php" class="action-btn secondary">
+            
+            <a href="/edm-system/documents/index.php" class="action-btn secondary" 
+               style="background-color: #f3f4f6; color: #1f2937; padding: 12px 24px; border: 1px solid #d1d5db; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
                 Cancel
             </a>
         </div>

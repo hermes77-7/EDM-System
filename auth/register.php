@@ -15,12 +15,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $conn->real_escape_string($_POST["email"]);
     $password = $_POST["password"];
 
-    // Check if email exists
     $check = $conn->query("SELECT id FROM users WHERE email = '$email'");
     if ($check->num_rows > 0) {
         $error = "Email already exists";
     } else if ($password !== $_POST["confirm_password"]) {
-    $error = "Passwords do not match";
+        $error = "Passwords do not match";
     } else {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
@@ -28,9 +27,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 VALUES ('$name', '$email', '$hashedPassword', 'viewer', 1)";
 
         if ($conn->query($sql)) {
-    header("Location: login.php");
-    exit();
-        }else {
+            header("Location: login.php");
+            exit();
+        } else {
             $error = "Something went wrong";
         }
     }
@@ -63,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 body {
     display: flex;
     height: 100vh;
-    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
+    background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
                 url('../assets/images/Login-Background.jpg');
     background-size: cover;
     background-position: center;
@@ -96,6 +95,7 @@ body {
     align-items: center;
     backdrop-filter: blur(5px);
     background: rgba(255,255,255,0.05);
+    padding: 20px;
 }
 
 .login-box {
@@ -120,7 +120,6 @@ body {
     color: #6b7280;
 }
 
-/* messages */
 .error {
     background: #fef2f2;
     color: #dc2626;
@@ -139,7 +138,6 @@ body {
     text-align: center;
 }
 
-/* inputs */
 .input-group {
     margin-bottom: 18px;
 }
@@ -149,9 +147,15 @@ body {
     padding: 14px;
     border-radius: 14px;
     border: 1px solid #ddd;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
 }
 
-/* button */
+.input-group input:focus {
+    border-color: var(--primary-green);
+}
+
 button {
     width: 100%;
     padding: 14px;
@@ -160,13 +164,15 @@ button {
     border: none;
     border-radius: 14px;
     cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: background 0.2s;
 }
 
 button:hover {
     background: var(--accent-green);
 }
 
-/* link */
 .link {
     text-align: center;
     margin-top: 15px;
@@ -177,6 +183,58 @@ button:hover {
     color: var(--primary-green);
     text-decoration: none;
     font-weight: 600;
+}
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+    body {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+        padding: 30px 16px;
+        background-attachment: scroll;
+    }
+
+    .left {
+        display: none;
+    }
+
+    .right {
+        flex: none;
+        width: 100%;
+        padding: 0;
+        background: transparent;
+        backdrop-filter: none;
+    }
+
+    .login-box {
+        padding: 36px 24px;
+        border-radius: 20px;
+        max-width: 100%;
+    }
+
+    .login-box h2 {
+        font-size: 24px;
+    }
+
+    .input-group input {
+        font-size: 16px; /* prevent iOS zoom */
+        padding: 13px;
+    }
+
+    button {
+        padding: 14px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 400px) {
+    .login-box {
+        padding: 28px 18px;
+    }
 }
 </style>
 </head>
@@ -215,7 +273,6 @@ button:hover {
                 <input type="password" name="confirm_password" placeholder="Confirm Password" required>
             </div>
 
-            
             <button type="submit">Create Account</button>
         </form>
 
