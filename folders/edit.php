@@ -33,6 +33,17 @@ if ($foldersResult) {
     }
 }
 
+$foldersResult = $conn->query("SELECT id, name, parent_id FROM folders ORDER BY name ASC");
+$foldersByParent = [];
+
+if ($foldersResult) {
+    while ($row = $foldersResult->fetch_assoc()) {
+        $row['id'] = (int)$row['id'];
+        $row['parent_id'] = $row['parent_id'] === null ? null : (int)$row['parent_id'];
+        $foldersByParent[$row['parent_id']][] = $row;
+    }
+}
+
 function isDescendant(array $folders, $possibleParentId, $folderId) {
     $map = [];
     foreach ($folders as $f) {
@@ -47,6 +58,49 @@ function isDescendant(array $folders, $possibleParentId, $folderId) {
     }
     return false;
 }
+
+
+function buildFolderOptions(
+    $foldersByParent,
+    $parentId = null,
+    $level = 0,
+    $selectedId = null,
+    $excludeId = null
+) {
+    $html = '';
+
+    if (!empty($foldersByParent[$parentId])) {
+
+        foreach ($foldersByParent[$parentId] as $folder) {
+
+            $id = (int)$folder['id'];
+
+            // Prevent selecting itself as parent
+            if ($excludeId !== null && $id === (int)$excludeId) {
+                continue;
+            }
+
+            $selected = ($selectedId == $id) ? 'selected' : '';
+
+            $indent = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
+
+            $html .= '<option value="' . $id . '" ' . $selected . '>'
+                  . $indent . htmlspecialchars($folder['name'])
+                  . '</option>';
+
+            $html .= buildFolderOptions(
+                $foldersByParent,
+                $id,
+                $level + 1,
+                $selectedId,
+                $excludeId
+            );
+        }
+    }
+
+    return $html;
+}
+
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $name = trim($_POST["name"] ?? "");
@@ -109,7 +163,7 @@ include("../includes/header.php");
                 <?php 
                 // Quick safety check: if the function doesn't exist, it won't crash the entire page layout
                 if (function_exists('buildFolderOptions')) {
-                    echo buildFolderOptions($folders, null, 0, $folder['parent_id'], $id);
+                    echo buildFolderOptions($foldersByParent, null, 0, $doc['folder_id'], $id);
                 } else {
                     echo '<option value="" disabled>Error: Folder helper function missing</option>';
                 }

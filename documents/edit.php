@@ -38,41 +38,17 @@ if ($foldersResult) {
 }
 
 /* BUILD FOLDER DROPDOWN */
-function buildFolderOptions(
-    $foldersByParent,
-    $parentId = null,
-    $level = 0,
-    $selectedId = null,
-    $excludeId = null
-) {
+function buildFolderOptions($foldersByParent, $parentId = null, $level = 0, $selectedId = null) {
     $html = '';
 
     if (!empty($foldersByParent[$parentId])) {
-
         foreach ($foldersByParent[$parentId] as $folder) {
-
             $id = (int)$folder['id'];
-
-            // Prevent selecting itself as parent
-            if ($excludeId !== null && $id === (int)$excludeId) {
-                continue;
-            }
-
             $selected = ($selectedId == $id) ? 'selected' : '';
-
             $indent = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
 
-            $html .= '<option value="' . $id . '" ' . $selected . '>'
-                  . $indent . htmlspecialchars($folder['name'])
-                  . '</option>';
-
-            $html .= buildFolderOptions(
-                $foldersByParent,
-                $id,
-                $level + 1,
-                $selectedId,
-                $excludeId
-            );
+            $html .= "<option value=\"$id\" $selected>$indent" . htmlspecialchars($folder['name']) . "</option>";
+            $html .= buildFolderOptions($foldersByParent, $id, $level + 1, $selectedId);
         }
     }
 
